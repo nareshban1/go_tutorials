@@ -2,14 +2,15 @@ package main
 
 import (
 	"go_tutorials/database"
-	"go_tutorials/models"
 	"go_tutorials/routes"
 )
 
 func main() {
-	db := database.SetupDB()
-	db.AutoMigrate(&models.Task{})
+	db := database.ConnectDatabase()
 	r := routes.SetupRoutes(db)
-	r.Run()
+	err := r.Run()
+	if err != nil {
+		panic("Something went wrong")
+	}
 
 }
