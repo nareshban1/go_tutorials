@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"go_tutorials/database"
 	"go_tutorials/models"
 	"net/http"
@@ -13,6 +14,7 @@ type CreateTaskInput struct {
 	TaskName        string `json:"taskName" binding:"required"`
 	TaskDescription string `json:"taskDescription" binding:"required"`
 	TaskStatus      bool   `json:"taskStatus" `
+	UserID          *uint  `json:"userId"`
 }
 
 // api to get all tasks from database
@@ -20,7 +22,9 @@ func GetTasks(c *gin.Context) {
 	// create a slice of tasks
 	var tasks []models.Task
 	// get all tasks from database
-	database.Database.Find(&tasks)
+
+	database.Database.Preload("User").Find(&tasks)
+
 	// return response
 	c.JSON(http.StatusOK, gin.H{"data": tasks})
 }
@@ -34,8 +38,11 @@ func CreateTask(c *gin.Context) {
 		return
 	}
 	// create task
-	newTask := models.Task{TaskName: newTaskData.TaskName, TaskDescription: newTaskData.TaskDescription, TaskStatus: newTaskData.TaskStatus}
+	newTask := models.Task{TaskName: newTaskData.TaskName, TaskDescription: newTaskData.TaskDescription, TaskStatus: newTaskData.TaskStatus, UserID: newTaskData.UserID}
 	database.Database.Create(&newTask)
+	if newTaskData.UserID != nil {
+		database.Database.Preload("User").First(&newTask)
+	}
 	// return response
 	c.JSON(http.StatusOK, gin.H{"data": newTask})
 }
@@ -59,7 +66,6 @@ func UpdateTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Task not found!"})
 		return
 	}
-
 	// update task
 	var updateTaskData CreateTaskInput
 	// validate input
@@ -67,8 +73,14 @@ func UpdateTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	// update task in database and return response if task exists and updated successfully
-	database.Database.Model(&task).Updates(updateTaskData)
+	updateTask := models.Task{TaskName: updateTaskData.TaskName, TaskDescription: updateTaskData.TaskDescription, TaskStatus: updateTaskData.TaskStatus, UserID: updateTaskData.UserID}
+	if err := database.Database.Model(&task).Select("*").Omit("ID").Updates(updateTask).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	fmt.Println(updateTaskData)
+	database.Database.Preload("User").First(&task, task.ID)
 	c.JSON(http.StatusOK, gin.H{"data": task})
 }
 
@@ -80,6 +92,9 @@ func DeleteTask(c *gin.Context) {
 		return
 	}
 	// delete task from database and return response if task exists and deleted successfully
-	database.Database.Delete(&task)
+	if err := database.Database.Delete(&task).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"data": "Deleted Successfully"})
 }

@@ -5,4 +5,6 @@ type Task struct {
 	TaskName        string `json:"taskName"`
 	TaskDescription string `json:"taskDescription"`
 	TaskStatus      bool   `json:"taskStatus"`
+	UserID          *uint
+	User            *User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
