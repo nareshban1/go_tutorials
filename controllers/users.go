@@ -29,7 +29,7 @@ func GetUsers(c *gin.Context) {
 	// create a slice of users
 	var users []models.User
 	// get all users from database
-	if err := database.Database.Select("UserName", "Email").Find(&users).Error; err != nil {
+	if err := database.Database.Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 
