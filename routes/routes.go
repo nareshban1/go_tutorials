@@ -2,6 +2,7 @@ package routes
 
 import (
 	"go_tutorials/controllers"
+	"go_tutorials/middleware"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -17,7 +18,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.DELETE("/delete-task/:id", controllers.DeleteTask)
 	r.GET("/get-tasks/page/:page", controllers.GetPaginatedTask)
 	//users
-	r.GET("/users", controllers.GetUsers)
+	r.GET("/users", middleware.Authenticated, controllers.GetUsers)
 	r.POST("/sign-up", controllers.SignUp)
 	r.POST("/login", controllers.Login)
 	r.GET("/user/:id", controllers.GetUser)
