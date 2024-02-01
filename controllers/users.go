@@ -46,10 +46,11 @@ func GetUser(c *gin.Context) {
 	// create an empty user struct
 	var user models.User
 	// check if user exists in database or not by id provided in url param and return error if not exists
-	if err := database.Database.Where("id = ?", c.Param("id")).First(&user).Error; err != nil {
+	if err := database.Database.First(&user, c.Param("id")).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found!"})
 		return
 	}
+
 	// return response if user exists
 	c.JSON(http.StatusOK, gin.H{"data": user})
 }
@@ -70,7 +71,6 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 	// update user in database and return response if user exists and updated successfully
-
 	database.Database.Model(&user).Updates(input)
 	c.JSON(http.StatusOK, gin.H{"data": user})
 }
@@ -84,6 +84,9 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 	// delete user from database and return response if user exists and deleted successfully
-	database.Database.Delete(&user)
+	if err := database.Database.Delete(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"data": true})
 }

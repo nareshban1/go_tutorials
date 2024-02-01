@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go_tutorials/database"
 	"go_tutorials/models"
+	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,16 +18,39 @@ type CreateTaskInput struct {
 	UserID          *uint  `json:"userId"`
 }
 
+type PaginatedTasks struct {
+	NextPage    int `json:"nextPage"`
+	TotalPage   int `json:"totalPage"`
+	CurrentPage int `json:"currentPage"`
+}
+
 // api to get all tasks from database
 func GetTasks(c *gin.Context) {
 	// create a slice of tasks
 	var tasks []models.Task
 	// get all tasks from database
 
-	database.Database.Preload("User").Find(&tasks)
+	result := database.Database.Preload("User").Find(&tasks)
 
 	// return response
-	c.JSON(http.StatusOK, gin.H{"data": tasks})
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func GetPaginatedTask(c *gin.Context) {
+	var tasks []models.Task
+	perPageCount := 10
+	page := 1
+	offset := (page - 1) * int(perPageCount)
+	var totalRows int64
+	database.Database.Model(&models.Task{}).Count(&totalRows)
+	database.Database.Limit(int(perPageCount)).Offset(offset).Find(&tasks)
+	totalPages := math.Ceil(float64(totalRows) / float64(perPageCount))
+	c.JSON(http.StatusOK, gin.H{"data": tasks, "pagination": PaginatedTasks{
+		NextPage:    page + 1,
+		CurrentPage: page,
+		TotalPage:   int(totalPages),
+	}})
+
 }
 
 func CreateTask(c *gin.Context) {
@@ -37,7 +61,7 @@ func CreateTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	// create task
+	// create task  user can be assigned to a task if user id is sent
 	newTask := models.Task{TaskName: newTaskData.TaskName, TaskDescription: newTaskData.TaskDescription, TaskStatus: newTaskData.TaskStatus, UserID: newTaskData.UserID}
 	database.Database.Create(&newTask)
 	if newTaskData.UserID != nil {
@@ -51,7 +75,7 @@ func GetTask(c *gin.Context) {
 	// get task by id
 	var task models.Task
 	// check if task exists in database or not by id provided in url param and return error if not exists
-	if err := database.Database.Where("id = ?", c.Param("id")).First(&task).Error; err != nil {
+	if err := database.Database.Where("id = ?", c.Param("id")).Preload("User").First(&task).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Task not found!"})
 		return
 	}
@@ -73,7 +97,9 @@ func UpdateTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	updateTask := models.Task{TaskName: updateTaskData.TaskName, TaskDescription: updateTaskData.TaskDescription, TaskStatus: updateTaskData.TaskStatus, UserID: updateTaskData.UserID}
+	// update task and also set user to null of null is passed from the api and dont update the primary id
 	if err := database.Database.Model(&task).Select("*").Omit("ID").Updates(updateTask).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
