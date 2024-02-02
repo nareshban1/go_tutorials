@@ -10,6 +10,8 @@ import (
 
 func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r := gin.Default()
+	r.Use(middleware.CORSMiddleware())
+
 	//tasks
 	r.GET("/tasks", controllers.GetTasks)
 	r.GET("/task/:id", controllers.GetTask)

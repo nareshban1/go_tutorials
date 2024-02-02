@@ -9,6 +9,7 @@ import (
 
 func main() {
 	godotenv.Load()
+
 	db := database.ConnectDatabase()
 	r := routes.SetupRoutes(db)
 	err := r.Run()
